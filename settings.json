@@ -1,0 +1,16 @@
+{
+    "sizeBreakpoints": {
+        "small_size": 30,
+        "medium_size": 100,
+        "large_size": 250,
+        "extra_large_size": 500
+
+    },
+    "weights": {
+        "line_addition_weight": 2,
+        "line_deletion_weight": 1,
+        "file_edited_weight": 10
+    },
+    "comments_enabled": true,
+    "enable_gif": false
+}
