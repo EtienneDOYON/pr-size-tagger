@@ -18,48 +18,53 @@ module.exports = (app) => {
   const M_BREAKPOINT = settings.sizeBreakpoints.medium_size;
   const L_BREAKPOINT = settings.sizeBreakpoints.large_size;
   const XL_BREAKPOINT = settings.sizeBreakpoints.extra_large_size;
+
+  const FILES_TO_EXCLUDE = settings.files_excluded;
   
   //#endregion
 
-  app.on("pull_request", async (context) => {
+  app.on( ["pull_request.assigned", "pull_request.opened", "pull_request.ready_for_review", "pull_request.reopened", "pull_request.edited", "pull_request.synchronize"],
+    async (context) => {
 
     const payload = context.payload;
     const pull_request = payload.pull_request;
+    
+    // If the PR is still a draft, we do not want to add a tag yet
+    if (pull_request.draft == true) return;
 
-    switch(payload.action) {
-      case ("assigned"):
-      case ("opened"):
-      case ("ready_for_review"):
-      case ("reopened"):
-      case ("edited"):
-      case ("synchronize"):    
-        // If the PR is still a draft, we do not want to add a tag yet
-        if (pull_request.draft == true) break;
+    var deletions, additions, changed_files = 0;
 
-        const [totalSize, sizeTag] = getTotalPrSize(pull_request.deletions, pull_request.additions, pull_request.changed_files);
-        const currentLabel = pull_request.labels.find(label => (label.name == "XS" || label.name == "S" || label.name == "M"|| label.name == "L" || label.name == "XL")
-                                  && label.name != sizeTag);
+    context.octokit.rest.pulls.listFiles(context.issue).then((fileList) => {
+      fileList.data.forEach((file) => {
+        if (!RegExp(FILES_TO_EXCLUDE).test(file.filename)) {
+          deletions += file.deletions;
+          additions += file.additions;
+          changed_files += 1;
+        }
+      });
 
-        // If the PR currently has a size tag, and it is different from the one we want, then we remove it first.
-        if (currentLabel != null) {
-            context.octokit.rest.issues.removeLabel(context.issue({name: currentLabel.name}))
-          }
+      const [totalSize, sizeTag] = getTotalPrSize(deletions, additions, changed_files);
 
-        // If comments are enabled, we tell the user what are we doing, and why
-        if (COMMENTS_ENABLED) {
-          var _body = "The total value of your PR is " + totalSize + ".\n"
-            + "Therefore, this PR is considered " + sizeTag;
+      const currentLabel = pull_request.labels.find(label => (label.name == "XS" || label.name == "S" || label.name == "M"|| label.name == "L" || label.name == "XL")
+                                && label.name != sizeTag);
 
-          context.octokit.rest.issues.createComment(context.issue({body: _body}))
+      // If the PR currently has a size tag, and it is different from the one we want, then we remove it first.
+      if (currentLabel != null) {
+          context.octokit.rest.issues.removeLabel(context.issue({name: currentLabel.name}))
         }
 
-        // If the tag we need isn't on the PR yet, then we add it.
-        if (pull_request.labels.find(label => label.name == sizeTag) == null)
-          context.octokit.rest.issues.addLabels(context.issue({labels: [sizeTag]}))
-        break;
-    }
+      // If comments are enabled, we tell the user what are we doing, and why
+      if (COMMENTS_ENABLED) {
+        var _body = "The total value of your PR is " + totalSize + ".\n"
+          + "Therefore, this PR is considered " + sizeTag;
 
+        context.octokit.rest.issues.createComment(context.issue({body: _body}))
+      }
 
+      // If the tag we need isn't on the PR yet, then we add it.
+      if (pull_request.labels.find(label => label.name == sizeTag) == null)
+        context.octokit.rest.issues.addLabels(context.issue({labels: [sizeTag]}))
+    })
   });
 
   function getTotalPrSize(deletions, additions, changed_files) {

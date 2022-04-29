@@ -11,5 +11,6 @@
         "line_deletion_weight": 1,
         "file_edited_weight": 10
     },
-    "comments_enabled": true
+    "comments_enabled": true,
+    "files_excluded": ".*\\.json$"
 }
