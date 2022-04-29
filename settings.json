@@ -12,5 +12,5 @@
         "file_edited_weight": 10
     },
     "comments_enabled": true,
-    "files_excluded": ".*\\.json$"
+    "files_excluded": ".*\\.(json|lock|snapshot)$"
 }
