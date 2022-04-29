@@ -32,9 +32,12 @@ module.exports = (app) => {
     // If the PR is still a draft, we do not want to add a tag yet
     if (pull_request.draft == true) return;
 
-    var deletions, additions, changed_files = 0;
+    context.octokit.rest.pulls.listFiles(context.issue({pull_number: pull_request.number})).then((fileList) => {
 
-    context.octokit.rest.pulls.listFiles(context.issue).then((fileList) => {
+      var deletions = 0;
+      var additions = 0;
+      var changed_files = 0;
+
       fileList.data.forEach((file) => {
         if (!RegExp(FILES_TO_EXCLUDE).test(file.filename)) {
           deletions += file.deletions;
@@ -72,8 +75,7 @@ module.exports = (app) => {
       + deletions * WEIGHT_OF_DELETION
       + changed_files * WEIGHT_OF_FILE;
 
-    var sizeTag = "";
-    if (size <= S_BREAKPOINT) sizeTag = "XS";
+    var sizeTag = "XS";
     if (size > S_BREAKPOINT) sizeTag = "S";
     if (size > M_BREAKPOINT) sizeTag = "M";
     if (size > L_BREAKPOINT) sizeTag = "L";
